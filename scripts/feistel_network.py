@@ -23,7 +23,12 @@ class BadHashError(Exception):
 
     def __str__(self):
         return f"{self.args[0]}"
+class BadKeyError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
 
+    def __str__(self):
+        return f"{self.args[0]}"
 
 class FeistelNetwork:
     def __init__(self):
@@ -106,8 +111,8 @@ class FeistelNetwork:
 
     def set_keys(self, key_list):
         if type(key_list != list):
-            # add failure message here
-            return
+            raise BadKeyError('Key isn\'t a list.')
+
         self.__keys = key_list
 
     def get_keys(self):
