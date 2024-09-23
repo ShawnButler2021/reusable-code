@@ -1,4 +1,6 @@
 import math
+import random
+import string
 import hashlib
 from abc import ABC, abstractmethod
 
@@ -33,20 +35,19 @@ class BadKeyError(Exception):
 class FeistelNetwork:
     def __init__(self):
         self.__keys = []
-        self.__message = ''
-        self.__message_length = -1
+        self.__round = default_round_function
 
-        self.__round = -1
+    def generate_keys(self, key_length, num):
+        # make keys more difficult
+        # currently round number (chr(i))
+        key_list = []
+        for i in range(0,num):
+            temp = [random.choice(string.ascii_letters + string.digits + string.punctuation + string.whitespace) for i in range(1, key_length + 1)]
+            temp = ''.join(temp)
+            key_list.append(temp)
+        self.__keys = key_list
 
-    def __generate_keys(self):
-        # making a string key
-        if self.__message == '':
-            print('Message is empty. Please assign a message and try again')
-            return
-        self.__message_length = len(self.__message) // 2
-        self.__keys = [chr(i) * self.__message_length for i in range(1, self.__rounds_num + 1)]
-
-    def xor_strings(self, string1, string2):
+    def __xor_strings(self, string1, string2):
         # input validation
         if type(string1) != str or type(string2) != str:
             raise TypeError('Parameters aren\'t strings.')
@@ -57,91 +58,70 @@ class FeistelNetwork:
     def set_round_function(self,func):
         self.__round = func
 
-    def encrypt(self, rounds):
-        # input validation
-        if type(rounds) != int:
-            raise TypeError('Parameters aren\'t integers.')
+    def encrypt(self, msg):
         # checking if message has been assigned
-        if self.__message == '':
+        if msg == '':
             raise EmptyMessageError
 
         # adding an invisible character if the length of the key is odd
-        if len(self.__message) % 2 != 0:
-            self.__message += ' '
-        self.__rounds_num = rounds
+        if len(msg) % 2 != 0:
+            msg += ' '
 
-        left, right = self.__message[:len(self.__message) // 2], self.__message[len(self.__message) // 2:]
-        self.__generate_keys()
+        left, right = msg[:len(msg) // 2], msg[len(msg) // 2:]
+
 
         # running rounds
         for key in self.__keys:
-            new_right = self.xor_strings(left, self.__round(self, right, key))
+            new_right = self.__xor_strings(left, self.__round(right, key))
             left = right
             right = new_right
 
         # assigning message
-        self.__message = left + right
+        msg = left + right
 
-    def decrypt(self):
+        return msg
+
+    def decrypt(self, msg):
         # checking if message has been assigned
-        if self.__message == '':
+        if msg == '':
             raise EmptyMessageError
 
 
         # splitting message
-        left, right = self.__message[:len(self.__message) // 2], self.__message[len(self.__message) // 2:]
-        self.__generate_keys()
+        left, right = msg[:len(msg) // 2], msg[len(msg) // 2:]
+
 
         # running rounds in reverse
         for key in reversed(self.__keys):
-            new_left = self.xor_strings(right, self.__round(self, left, key))
+            new_left = self.__xor_strings(right, self.__round(left, key))
             right = left
             left = new_left
 
         # assigning result, removing invisible character is present
-        self.__message = (left+right)
+        msg = (left+right)
         if (left+right)[-1] == ' ':
-            self.__message = (left+right)[:-1]
+            msg = (left+right)[:-1]
 
-    def set_message(self, message):
-        self.__message = message
-
-    def get_message(self):
-        return self.__message
-
-    def set_keys(self, key_list):
-        if type(key_list != list):
-            raise BadKeyError('Key isn\'t a list.')
-
-        self.__keys = key_list
+        return msg
 
     def get_keys(self):
         return self.__keys
 
-def temp_function(obj, data, key):
+
+# new round functions must RETURN their final data
+# data must be string
+def default_round_function(data, key):
     # input validation
     if type(data) != str or type(key) != str:
         raise TypeError('Parameters aren\'t strings.')
-    # keeping as string to work with xor_strings
+    # keeping as string to work with __xor_strings
     # could have used .digest otherwise
     # data = hashlib.sha512(data.encode()).hexdigest()
     hash_obj = hashlib.new('SHA512')
     hash_obj.update(data.encode())
 
-    return obj.xor_strings(hash_obj.hexdigest(), key)
+    return hash_obj.hexdigest()
 
-if __name__ == '__main__':
-    net = FeistelNetwork()
-    x = input('Give message: ')
 
-    net.set_message(x)
-    net.set_round_function(temp_function)
-
-    print(f'Message: {net.get_message()}')
-
-    net.encrypt(5)
-    print(f'Encrypted: {net.get_message()}')
-    net.decrypt()
-    print(f'Decrypted: {net.get_message()}')
 
 
