@@ -31,11 +31,19 @@ class BadKeyError(Exception):
 
     def __str__(self):
         return f"{self.args[0]}"
+class BadRoundCountError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+    def __str__(self):
+        return f"{self.args[0]}"
+
 
 class FeistelNetwork:
     def __init__(self):
         self.__keys = []
         self.__round = default_round_function
+        self.__round_count = 2
 
     def generate_keys(self, key_length, num):
         # make keys more difficult
@@ -55,8 +63,22 @@ class FeistelNetwork:
         # and combining with list comprehension & join
         return ''.join(chr(ord(a) ^ ord(b)) for a, b in zip(string1, string2))
 
-    def set_round_function(self,func):
+    def set_keys(self, key_list):
+        if type(key_list) != list:
+            raise BadKeyError('New keys must be a list.')
+        for item in key_list:
+            if type(item) != str:
+                raise BadKeyError('All items in the new key list must be a string.')
+
+        self.__keys = key_list
+
+    def set_round_function(self, func):
         self.__round = func
+
+    def set_round_count(self, num):
+        if num < 2:
+            raise BadRoundCountError('The number of rounds must be 2 or greater.')
+        self.__round_count = num
 
     def encrypt(self, msg):
         # checking if message has been assigned
@@ -71,10 +93,11 @@ class FeistelNetwork:
 
 
         # running rounds
-        for key in self.__keys:
-            new_right = self.__xor_strings(left, self.__round(right, key))
-            left = right
-            right = new_right
+        for i in range(0, self.__round_count):
+            for key in self.__keys:
+                new_right = self.__xor_strings(left, self.__round(right, key))
+                left = right
+                right = new_right
 
         # assigning message
         msg = left + right
@@ -92,10 +115,11 @@ class FeistelNetwork:
 
 
         # running rounds in reverse
-        for key in reversed(self.__keys):
-            new_left = self.__xor_strings(right, self.__round(left, key))
-            right = left
-            left = new_left
+        for i in range(0,self.__round_count):
+            for key in reversed(self.__keys):
+                new_left = self.__xor_strings(right, self.__round(left, key))
+                right = left
+                left = new_left
 
         # assigning result, removing invisible character is present
         msg = (left+right)
@@ -106,6 +130,9 @@ class FeistelNetwork:
 
     def get_keys(self):
         return self.__keys
+
+    def get_round_count(self):
+        return self.__round_count
 
 
 # new round functions must RETURN their final data
@@ -122,6 +149,20 @@ def default_round_function(data, key):
 
     return hash_obj.hexdigest()
 
+
+# for testing purposes
+# you should never call this module directly
+if __name__ == '__main__':
+    net = FeistelNetwork()
+    net.generate_keys(5, 1)
+
+    msg = input('Give a message: ')
+
+    encrypted_msg = net.encrypt(msg)
+    print(f'Encrypted: {encrypted_msg}')
+
+    decrypted_msg = net.decrypt(encrypted_msg)
+    print(f'Decrypted: {decrypted_msg}')
 
 
 
